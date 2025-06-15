@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Job {
+  id         Int      @id @default(autoincrement())
+  taskId     String   @unique
+  payload    Json
+  status     String
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  logs       AuditLog[]
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  taskId    String
+  event     String
+  metadata  Json
+  createdAt DateTime @default(now())
+
+  job       Job?     @relation(fields: [taskId], references: [taskId], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+enum JobStatus {
+  queued
+  processing
+  completed
+  failed
+  delayed
+}
+
+model WorkerState {
+  id         Int      @id @default(autoincrement())
+  workerId   String   @unique
+  lastPing   DateTime @default(now())
+  currentJob String?
+  memoryUsed Int
+  active     Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+}
+
+model MetricEvent {
+  id        Int      @id @default(autoincrement())
+  type      String
+  value     Float
+  source    String
+  label     String?
+  timestamp DateTime @default(now())
+
+  @@index([type])
+  @@index([source])
+}
+
+model RetryTracker {
+  id        Int      @id @default(autoincrement())
+  taskId    String   @unique
+  count     Int      @default(0)
+  lastTry   DateTime @default(now())
+  cooldown  Int
+}
